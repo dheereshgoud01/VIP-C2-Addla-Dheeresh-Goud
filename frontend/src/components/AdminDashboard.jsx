@@ -438,7 +438,7 @@ function AdminDashboard({ user, onLogout }) {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric'
-                        })}
+                        })} at {appointment.time}
                       </td>
                       <td className="p-3">
                         <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-semibold uppercase ${appointment.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : appointment.status === 'completed' ? 'bg-indigo-100 text-indigo-800' : appointment.status === 'cancelled' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>

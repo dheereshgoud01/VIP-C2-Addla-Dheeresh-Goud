@@ -1,16 +1,31 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const TIMES = [
+  '8AM', '9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM', '7PM', '8PM', '9PM'
+];
+const APPOINTMENT_TIMES = [
+  '08:00 AM', '09:00 AM', '10:00 AM', '11:00 AM', '12:00 PM', '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM', '05:00 PM', '06:00 PM', '07:00 PM', '08:00 PM'
+];
+
 function UserDashboard({ user, onLogout }) {
   const [doctors, setDoctors] = useState([]);
   const [history, setHistory] = useState([]);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [appointmentDate, setAppointmentDate] = useState('');
+  const [appointmentTime, setAppointmentTime] = useState('09:00 AM');
   const [searchText, setSearchText] = useState('');
   const [specializationFilter, setSpecializationFilter] = useState('all');
   const [doctorName, setDoctorName] = useState('');
   const [specialization, setSpecialization] = useState('');
-  const [availability, setAvailability] = useState('');
+  
+  // Structured availability selectors for apply form
+  const [applyStartDay, setApplyStartDay] = useState('Mon');
+  const [applyEndDay, setApplyEndDay] = useState('Fri');
+  const [applyStartTime, setApplyStartTime] = useState('9AM');
+  const [applyEndTime, setApplyEndTime] = useState('5PM');
+
   const [fee, setFee] = useState('');
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
@@ -46,8 +61,8 @@ function UserDashboard({ user, onLogout }) {
 
   const handleBooking = async (event) => {
     event.preventDefault();
-    if (!selectedDoctor || !appointmentDate) {
-      setMessage('Please select a doctor and date before booking.');
+    if (!selectedDoctor || !appointmentDate || !appointmentTime) {
+      setMessage('Please select a doctor, date, and time before booking.');
       return;
     }
 
@@ -61,9 +76,11 @@ function UserDashboard({ user, onLogout }) {
         userName: user.name,
         doctorName: selectedDoctor.name,
         date: appointmentDate,
+        time: appointmentTime,
       });
       setMessage(`Appointment request sent to ${selectedDoctor.name}.`);
       setAppointmentDate('');
+      setAppointmentTime('09:00 AM');
       setSelectedDoctor(null);
       refreshData();
     } catch (error) {
@@ -95,16 +112,23 @@ function UserDashboard({ user, onLogout }) {
     setMessage('');
 
     try {
+      // Format availability from day/time selectors (e.g. "Mon-Fri 9AM-5PM")
+      const combinedAvailability = `${applyStartDay}-${applyEndDay} ${applyStartTime}-${applyEndTime}`;
+      
       await axios.post('http://localhost:8000/api/doctors/apply', {
-        name: doctorName,
+        userId: user._id,
+        name: doctorName || user.name,
         specialization,
-        availability,
+        availability: combinedAvailability,
         fees: fee,
       });
       setMessage('Doctor application submitted. Admin will review it soon.');
       setDoctorName('');
       setSpecialization('');
-      setAvailability('');
+      setApplyStartDay('Mon');
+      setApplyEndDay('Fri');
+      setApplyStartTime('9AM');
+      setApplyEndTime('5PM');
       setFee('');
       refreshData();
     } catch (error) {
@@ -116,7 +140,6 @@ function UserDashboard({ user, onLogout }) {
   };
 
   const upcomingAppointments = history.filter((entry) => entry.status === 'pending' || entry.status === 'approved');
-  const completedAppointments = history.filter((entry) => entry.status === 'completed' || entry.status === 'cancelled');
   const specializations = [...new Set(doctors.filter((doctor) => doctor.status === 'approved').map((doctor) => doctor.specialization))];
 
   return (
@@ -247,7 +270,14 @@ function UserDashboard({ user, onLogout }) {
                     <div key={appointment._id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div>
                         <p className="font-semibold text-slate-900">{appointment.doctorName}</p>
-                        <p className="text-sm text-slate-600">{appointment.date} � {appointment.status}</p>
+                        <p className="text-sm text-slate-600">
+                          {new Date(appointment.date).toLocaleDateString('en-US', {
+                            weekday: 'short',
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric'
+                          })} at {appointment.time} — <span className="capitalize font-semibold text-emerald-600">{appointment.status}</span>
+                        </p>
                       </div>
                       <button
                         type="button"
@@ -274,16 +304,33 @@ function UserDashboard({ user, onLogout }) {
                     <p className="font-semibold text-slate-900">{selectedDoctor.name}</p>
                     <p className="mt-1 text-sm text-slate-600">{selectedDoctor.specialization}</p>
                     <p className="mt-1 text-sm text-slate-600">{selectedDoctor.availability}</p>
-                    <p className="mt-1 text-sm text-slate-600">Fee: ?{selectedDoctor.fees}</p>
+                    <p className="mt-1 text-sm text-slate-600">Fee: ₹{selectedDoctor.fees}</p>
                   </div>
 
-                  <label className="block text-sm font-semibold text-slate-700">Appointment date</label>
-                  <input
-                    type="date"
-                    value={appointmentDate}
-                    onChange={(event) => setAppointmentDate(event.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-emerald-500"
-                  />
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700">Appointment date</label>
+                    <input
+                      type="date"
+                      required
+                      value={appointmentDate}
+                      onChange={(event) => setAppointmentDate(event.target.value)}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-emerald-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700">Appointment time</label>
+                    <select
+                      required
+                      value={appointmentTime}
+                      onChange={(event) => setAppointmentTime(event.target.value)}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none focus:border-emerald-500"
+                    >
+                      {APPOINTMENT_TIMES.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
 
                   <button
                     type="submit"
@@ -327,15 +374,42 @@ function UserDashboard({ user, onLogout }) {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-slate-700">Availability</label>
-                  <input
-                    type="text"
-                    value={availability}
-                    onChange={(event) => setAvailability(event.target.value)}
-                    placeholder="Mon-Fri, 10am - 4pm"
-                    required
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-emerald-500"
-                  />
+                  <label className="block text-sm font-semibold text-slate-700">Availability Days</label>
+                  <div className="mt-2 grid grid-cols-2 gap-4">
+                    <select
+                      value={applyStartDay}
+                      onChange={(e) => setApplyStartDay(e.target.value)}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-emerald-500"
+                    >
+                      {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                    <select
+                      value={applyEndDay}
+                      onChange={(e) => setApplyEndDay(e.target.value)}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-emerald-500"
+                    >
+                      {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-slate-700">Availability Hours</label>
+                  <div className="mt-2 grid grid-cols-2 gap-4">
+                    <select
+                      value={applyStartTime}
+                      onChange={(e) => setApplyStartTime(e.target.value)}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-emerald-500"
+                    >
+                      {TIMES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                    <select
+                      value={applyEndTime}
+                      onChange={(e) => setApplyEndTime(e.target.value)}
+                      className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none focus:border-emerald-500"
+                    >
+                      {TIMES.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-slate-700">Consultation fee</label>
@@ -381,9 +455,15 @@ function UserDashboard({ user, onLogout }) {
                   history.map((appointment) => (
                     <tr key={appointment._id}>
                       <td className="p-3 font-semibold text-slate-900">{appointment.doctorName}</td>
-                      <td className="p-3 font-mono">{appointment.date}</td>
+                      <td className="p-3 font-mono">
+                        {new Date(appointment.date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })} at {appointment.time}
+                      </td>
                       <td className="p-3">
-                        <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-semibold ${appointment.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : appointment.status === 'completed' ? 'bg-indigo-100 text-indigo-800' : 'bg-rose-100 text-rose-800'}`}>
+                        <span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-semibold uppercase ${appointment.status === 'approved' ? 'bg-emerald-100 text-emerald-800' : appointment.status === 'completed' ? 'bg-indigo-100 text-indigo-800' : appointment.status === 'cancelled' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}`}>
                           {appointment.status}
                         </span>
                       </td>

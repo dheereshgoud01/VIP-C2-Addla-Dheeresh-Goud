@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const TIMES = [
+  '8AM', '9AM', '10AM', '11AM', '12PM', '1PM', '2PM', '3PM', '4PM', '5PM', '6PM', '7PM', '8PM', '9PM'
+];
+
 export default function DoctorDashboard({ user, onLogout }) {
   const [doctorProfile, setDoctorProfile] = useState(null);
   const [appointments, setAppointments] = useState([]);
@@ -8,10 +13,15 @@ export default function DoctorDashboard({ user, onLogout }) {
   const [message, setMessage] = useState('');
   const [activeTab, setActiveTab] = useState('appointments');
   const [editMode, setEditMode] = useState(false);
-  const [availability, setAvailability] = useState('');
   const [fees, setFees] = useState('');
   const [specializationForm, setSpecializationForm] = useState('');
   const [showApplicationForm, setShowApplicationForm] = useState(false);
+
+  // Availability selector states
+  const [startDay, setStartDay] = useState('Mon');
+  const [endDay, setEndDay] = useState('Fri');
+  const [startTime, setStartTime] = useState('9AM');
+  const [endTime, setEndTime] = useState('5PM');
 
   useEffect(() => {
     refreshDoctorData();
@@ -23,8 +33,28 @@ export default function DoctorDashboard({ user, onLogout }) {
       const profileRes = await axios.get(`http://localhost:8000/api/doctors/profile/user/${user._id}`);
       const myProfile = profileRes.data;
       setDoctorProfile(myProfile);
-      setAvailability(myProfile.availability);
       setFees(myProfile.fees);
+
+      // Parse loaded availability (e.g. "Mon-Fri 9AM-5PM" or "Mon-Fri, 9AM-5PM")
+      if (myProfile.availability) {
+        const parts = myProfile.availability.split(/[\s,]+/);
+        if (parts.length >= 2) {
+          const daysPart = parts[0]; // e.g. "Mon-Fri"
+          const hoursPart = parts[1]; // e.g. "9AM-5PM"
+          
+          const days = daysPart.split('-');
+          if (days.length === 2) {
+            setStartDay(days[0]);
+            setEndDay(days[1]);
+          }
+          
+          const hours = hoursPart.split('-');
+          if (hours.length === 2) {
+            setStartTime(hours[0]);
+            setEndTime(hours[1]);
+          }
+        }
+      }
 
       const appointmentsRes = await axios.get(`http://localhost:8000/api/doctors/history/doctor/${myProfile._id}`);
       setAppointments(appointmentsRes.data);
@@ -51,10 +81,12 @@ export default function DoctorDashboard({ user, onLogout }) {
     setLoading(true);
     setMessage('');
     try {
+      const combinedAvailability = `${startDay}-${endDay} ${startTime}-${endTime}`;
+
       const updatedDoctor = await axios.put(
         `http://localhost:8000/api/doctors/profile/${doctorProfile._id}`,
         {
-          availability: availability.trim(),
+          availability: combinedAvailability,
           fees: parseFloat(fees),
         }
       );
@@ -63,6 +95,7 @@ export default function DoctorDashboard({ user, onLogout }) {
       setEditMode(false);
       setMessage('Profile updated successfully.');
       setTimeout(() => setMessage(''), 3000);
+      refreshDoctorData();
     } catch (error) {
       console.error(error);
       setMessage('Unable to update profile. Please try again.');
@@ -73,7 +106,7 @@ export default function DoctorDashboard({ user, onLogout }) {
 
   const handleApplyAsDoctor = async (e) => {
     e.preventDefault();
-    if (!specializationForm || !availability || !fees) {
+    if (!specializationForm || !fees) {
       setMessage('Please fill in all required fields.');
       return;
     }
@@ -81,11 +114,13 @@ export default function DoctorDashboard({ user, onLogout }) {
     setLoading(true);
     setMessage('');
     try {
+      const combinedAvailability = `${startDay}-${endDay} ${startTime}-${endTime}`;
+
       const res = await axios.post('http://localhost:8000/api/doctors/apply', {
         userId: user._id,
         name: user.name,
         specialization: specializationForm.trim(),
-        availability: availability.trim(),
+        availability: combinedAvailability,
         fees: parseFloat(fees),
       });
 
@@ -94,8 +129,12 @@ export default function DoctorDashboard({ user, onLogout }) {
       setMessage('Application submitted successfully. Awaiting admin approval.');
       setTimeout(() => setMessage(''), 3000);
       setSpecializationForm('');
-      setAvailability('');
+      setStartDay('Mon');
+      setEndDay('Fri');
+      setStartTime('9AM');
+      setEndTime('5PM');
       setFees('');
+      refreshDoctorData();
     } catch (error) {
       console.error(error);
       setMessage('Unable to submit application. Please try again.');
@@ -248,7 +287,7 @@ export default function DoctorDashboard({ user, onLogout }) {
                                 year: 'numeric',
                                 month: 'short',
                                 day: 'numeric',
-                              })}
+                              })} at {appt.time}
                             </p>
                           </div>
                           <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-sm font-medium">
@@ -300,7 +339,7 @@ export default function DoctorDashboard({ user, onLogout }) {
                                 year: 'numeric',
                                 month: 'short',
                                 day: 'numeric',
-                              })}
+                              })} at {appt.time}
                             </p>
                           </div>
                           <span className="px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-sm font-medium">
@@ -344,7 +383,7 @@ export default function DoctorDashboard({ user, onLogout }) {
                               month: 'short',
                               day: 'numeric',
                               year: 'numeric',
-                            })}
+                            })} at {appt.time}
                           </td>
                           <td className="px-6 py-4">
                             <span
@@ -392,16 +431,45 @@ export default function DoctorDashboard({ user, onLogout }) {
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
-                        Availability (e.g., Mon-Fri, 9AM-5PM)
+                        Availability Days
                       </label>
-                      <input
-                        type="text"
-                        required
-                        value={availability}
-                        onChange={(e) => setAvailability(e.target.value)}
-                        placeholder="Enter your availability"
-                        className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                      />
+                      <div className="grid grid-cols-2 gap-4">
+                        <select
+                          value={startDay}
+                          onChange={(e) => setStartDay(e.target.value)}
+                          className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        >
+                          {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                        <select
+                          value={endDay}
+                          onChange={(e) => setEndDay(e.target.value)}
+                          className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        >
+                          {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Availability Hours
+                      </label>
+                      <div className="grid grid-cols-2 gap-4">
+                        <select
+                          value={startTime}
+                          onChange={(e) => setStartTime(e.target.value)}
+                          className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        >
+                          {TIMES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                        <select
+                          value={endTime}
+                          onChange={(e) => setEndTime(e.target.value)}
+                          className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                        >
+                          {TIMES.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -478,14 +546,45 @@ export default function DoctorDashboard({ user, onLogout }) {
                     <form onSubmit={handleUpdateProfile} className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Availability (e.g., Mon-Fri, 9AM-5PM)
+                          Availability Days
                         </label>
-                        <input
-                          type="text"
-                          value={availability}
-                          onChange={(e) => setAvailability(e.target.value)}
-                          className="w-full px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                        />
+                        <div className="grid grid-cols-2 gap-4">
+                          <select
+                            value={startDay}
+                            onChange={(e) => setStartDay(e.target.value)}
+                            className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          >
+                            {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                          <select
+                            value={endDay}
+                            onChange={(e) => setEndDay(e.target.value)}
+                            className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          >
+                            {DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                          Availability Hours
+                        </label>
+                        <div className="grid grid-cols-2 gap-4">
+                          <select
+                            value={startTime}
+                            onChange={(e) => setStartTime(e.target.value)}
+                            className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          >
+                            {TIMES.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                          <select
+                            value={endTime}
+                            onChange={(e) => setEndTime(e.target.value)}
+                            className="px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                          >
+                            {TIMES.map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </div>
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-slate-700 mb-2">

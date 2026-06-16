@@ -179,7 +179,8 @@ async function runTests() {
       doctorId: doctorProfileId,
       userName: 'John Doe',
       doctorName: 'Dr. Priya Sharma',
-      date: '2026-07-15'
+      date: '2026-07-15',
+      time: '10:00 AM'
     });
     console.log(`Response Status: ${bookAppt.status}`);
     const appointmentId = bookAppt.body._id;

@@ -128,9 +128,9 @@ exports.updateDoctorProfile = async (req, res) => {
 // Book an appointment
 exports.bookAppointment = async (req, res) => {
   try {
-    const { userId, doctorId, userName, doctorName, date } = req.body;
+    const { userId, doctorId, userName, doctorName, date, time } = req.body;
 
-    if (!userId || !doctorId || !userName || !doctorName || !date) {
+    if (!userId || !doctorId || !userName || !doctorName || !date || !time) {
       return res.status(400).json({ message: 'Missing required fields for booking.' });
     }
 
@@ -140,6 +140,7 @@ exports.bookAppointment = async (req, res) => {
       userName,
       doctorName,
       date: new Date(date),
+      time,
       status: 'pending'
     });
 
