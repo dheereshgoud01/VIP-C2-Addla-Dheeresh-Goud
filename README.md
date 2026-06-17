@@ -2,7 +2,7 @@
 
 MediCareBook is a complete, full-stack appointment booking system designed to connect patients with doctors. The project is built using React on the frontend and Node.js/Express/MongoDB on the backend, adhering to a classic MVC (Model-View-Controller) design pattern.
 
-## 🚀 Key Features
+##  Key Features
 
 * **Authentication System**: Secure registration and login for Patients, Doctors, and Administrators (using `bcryptjs` password hashing).
 * **Patient Dashboard**:
@@ -23,7 +23,7 @@ MediCareBook is a complete, full-stack appointment booking system designed to co
 
 ---
 
-## 🛠️ Technology Stack
+##  Technology Stack
 
 * **Frontend**: React, Tailwind CSS (Play CDN), Axios, Google Fonts (Plus Jakarta Sans)
 * **Backend**: Node.js, Express, Mongoose (MongoDB Object Modeling)
@@ -32,7 +32,7 @@ MediCareBook is a complete, full-stack appointment booking system designed to co
 
 ---
 
-## 📁 Project Folder Structure
+##  Project Folder Structure
 
 ```
 ├── backend/
@@ -55,7 +55,7 @@ MediCareBook is a complete, full-stack appointment booking system designed to co
 
 ---
 
-## ⚙️ Running Locally
+##  Running Locally
 
 ### 1. Prerequisites
 Ensure you have [Node.js](https://nodejs.org/) installed and a local instance of [MongoDB](https://www.mongodb.com/) running on port `27017`.
@@ -96,7 +96,7 @@ Ensure you have [Node.js](https://nodejs.org/) installed and a local instance of
 
 ---
 
-## 🧪 Testing the APIs
+##  Testing the APIs
 To run a clean verification check of the API lifecycle, navigate to the `backend/` folder and execute the test suite:
 ```bash
 node test_endpoints.js
